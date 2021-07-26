@@ -3,7 +3,7 @@ import re
 import shutil
 
 from common.dictionary import Dictionary
-from common.grammer import Grammar
+from common.grammar import Grammar
 from constant import FILENAME
 from parser.corpus_parser import CorpusParser
 from parser.irregular_parser import IrregularParser

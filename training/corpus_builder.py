@@ -3,7 +3,7 @@ import re
 import shutil
 
 from common.dictionary import Dictionary
-from common.grammer import Grammar
+from common.grammar import Grammar
 from constant import FILENAME, SYMBOL
 from parser.corpus_parser import CorpusParser
 from parser.irregular_parser import IrregularParser
@@ -136,16 +136,3 @@ class CorpusBuilder:
             if len(_pruned_pos_freq_dic) != 0:
                 _pruned_dic[_word] = _pruned_pos_freq_dic
         return _pruned_dic
-
-
-# corpus_builder = CorpusBuilder()
-# corpus_builder.build_path("/Users/shinjunsoo/shineware/data/komoran_training_data", "refine.txt")
-# corpus_builder.save("corpus_build")
-
-# dic = {}
-# dic["a"] = {"NNP:10", "NNG:10"}
-# dic["b"] = {"N:10"}
-#
-# print(dic.items())
-# for _key, a in dic.items():
-#     print(_key)

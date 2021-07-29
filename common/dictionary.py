@@ -49,3 +49,5 @@ class Dictionary:
     def print(self):
         print(self._dictionary)
 
+    def __repr__(self):
+        return (f'Dictionary: {self._dictionary}')

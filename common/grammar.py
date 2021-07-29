@@ -45,6 +45,9 @@ class Grammar:
     def print(self):
         print(self._grammar)
 
+    def __repr__(self):
+        return (f'Grammar: {self._grammar}')
+
     def has(self, prev_pos, cur_pos):
         _cur_pos_freq_dict = self._grammar.get(prev_pos)
         if _cur_pos_freq_dict is None:

@@ -1,1 +1,2 @@
-unicodeblock
+numpy == 1.21.1
+ahocorapy == 1.6.1

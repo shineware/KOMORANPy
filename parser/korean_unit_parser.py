@@ -1,6 +1,6 @@
-import unicodedata
-from enum import Enum
+import re
 from bisect import bisect_left
+from enum import Enum
 
 chosung_list = [0x3131, 0x3132, 0x3134, 0x3137, 0x3138,
                 0x3139, 0x3141, 0x3142, 0x3143, 0x3145, 0x3146, 0x3147, 0x3148,
@@ -21,7 +21,7 @@ class UnitType(Enum):
     OTHER = 4
 
 
-def bsearch(collection, element):
+def binary_search(collection, element):
     _idx = bisect_left(collection, element)
     if _idx == len(collection) or collection[_idx] != element:
         return -1
@@ -85,13 +85,13 @@ class KoreanUnitParser:
                 if _has_buffer:
                     _result += chr(0xac00 + _chosung * 588 + _jungsung * 28 + _jongsung)
                     _jungsung = _jongsung = 0
-                _chosung = bsearch(chosung_list, _hex)
+                _chosung = binary_search(chosung_list, _hex)
                 _has_buffer = True
             elif _type == UnitType.JUNGSUNG:
-                _jungsung = bsearch(jungsung_list, _hex)
+                _jungsung = binary_search(jungsung_list, _hex)
                 _has_buffer = True
             elif _type == UnitType.JONGSUNG:
-                _jongsung = bsearch(jongsung_list, _hex)
+                _jongsung = binary_search(jongsung_list, _hex)
                 _has_buffer = True
             else:
                 if _has_buffer:
@@ -110,12 +110,11 @@ class KoreanUnitParser:
         _prev_idx = 0
         _result = ""
         while _idx < len(jaso_text):
-            # print(f"{_idx} : {jaso_text[_idx]}")
             _hex = ord(jaso_text[_idx])
-            _jungsung = bsearch(jungsung_list, _hex)
+            _jungsung = binary_search(jungsung_list, _hex)
             if _jungsung >= 0:
                 _hex = ord(jaso_text[_idx - 1])
-                _chosung = bsearch(chosung_list, _hex)
+                _chosung = binary_search(chosung_list, _hex)
                 if _chosung < 0:
                     _idx += 1
                     continue
@@ -124,8 +123,8 @@ class KoreanUnitParser:
                 _jongsung = 0
                 if _idx + 1 < len(jaso_text):
                     _hex = ord(jaso_text[_idx + 1])
-                    _jongsung = bsearch(jongsung_list, _hex)
-                if _idx + 2 < len(jaso_text) and bsearch(jungsung_list, ord(jaso_text[_idx + 2])) >= 0:
+                    _jongsung = binary_search(jongsung_list, _hex)
+                if _idx + 2 < len(jaso_text) and binary_search(jungsung_list, ord(jaso_text[_idx + 2])) >= 0:
                     _jongsung = 0
                 # 종성이 없는 경우
                 if _jongsung < 0:
@@ -142,5 +141,9 @@ class KoreanUnitParser:
 
 
 def is_korean(letter):
-    name = unicodedata.name(letter)
-    return name.startswith("HANGUL")
+    return re.search('[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]+', letter) is not None
+
+
+def is_jamo(letter):
+    _hex = ord(letter)
+    return 0x3131 <= _hex <= 0x318E

@@ -1,6 +1,8 @@
 class Dictionary:
-    def __init__(self):
-        self._dictionary = {}
+    def __init__(self, init_dic=None):
+        if init_dic is None:
+            init_dic = {}
+        self._dictionary = init_dic
 
     def load(self, filename):
         self._dictionary = {}
@@ -41,5 +43,9 @@ class Dictionary:
     def get_pos_freq_dict(self, key):
         return self._dictionary.get(key)
 
+    def get_dict(self):
+        return self._dictionary
+
     def print(self):
         print(self._dictionary)
+

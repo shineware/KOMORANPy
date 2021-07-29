@@ -1,6 +1,8 @@
 class Grammar:
-    def __init__(self):
-        self._grammar = {}
+    def __init__(self, init_grammar=None):
+        if init_grammar is None:
+            init_grammar = {}
+        self._grammar = init_grammar
 
     def load(self, filename):
         self._grammar = {}
@@ -50,3 +52,6 @@ class Grammar:
         else:
             _freq = _cur_pos_freq_dict.get(cur_pos)
             return _freq is not None
+
+    def get_grammar(self):
+        return self._grammar

@@ -10,6 +10,7 @@ class IrregularParser:
         self._problem_end_idx = -1
 
     def parse(self, problem, answer_list):
+        self.__init__()
         self._set_begin_idx(problem, answer_list)
         self._set_end_idx(problem, answer_list)
         return self._get_irregular_rules(problem, answer_list)
@@ -53,7 +54,6 @@ class IrregularParser:
         _irr_rules = []
         if not self._is_clean_rule(problem, answer_list):
             return _irr_rules
-
         # 불규칙 시작지점과 끝지점이 cross 되는 경우
         # 알리가 -> 알 + ㄹ + 리가
         # 시작지점 ( left to right ) = 4 ( ㅣㄱㅏ )
@@ -71,6 +71,9 @@ class IrregularParser:
             # 끝 지점 처리
             _irr_problem = problem[self._problem_begin_idx:].strip()
             if len(_irr_problem) == 0 or self._answer_begin_idx == len(answer_list) - 1:
+                if self._answer_begin_idx - 1 >= len(answer_list):
+                    print(f"{problem} -> {answer_list}")
+                    print(answer_list[self._answer_begin_idx - 1])
                 _irr_rule = self._expand_irregular_rule(problem, answer_list, self._problem_begin_idx, len(problem),
                                                         self._answer_begin_idx, len(answer_list) - 1)
             else:
@@ -108,14 +111,18 @@ class IrregularParser:
 
     def _is_clean_rule(self, problem, answer_list):
 
+        if self._answer_begin_idx == -1 or self._answer_end_idx == -1:
+            return False
+
         if answer_list[self._answer_end_idx] == "VCP":
             return False
 
-        for i in range(self._answer_begin_idx, self._answer_end_idx+1):
-            # todo : here we go! i가 -1인 경우에 대해서 처리가 필요
+        i = self._answer_begin_idx
+        while i < self._answer_end_idx+1:
             _pos = answer_list[i][1]
             if _pos == "NNP" or _pos == "NNG" or _pos.startswith("JK"):
                 return False
+            i += 1
 
         for _letter in problem:
             if not is_korean(_letter):
@@ -139,9 +146,6 @@ class IrregularParser:
         _tmp_problem_end_idx = problem_end_idx
 
         if answer_begin_idx != 0:
-            if answer_begin_idx - 1 >= len(answer_list):
-                print(f"{problem} : {answer_list}")
-                print(f"{answer_begin_idx}, {answer_end_idx}")
             _word = answer_list[answer_begin_idx - 1][0]
             _pos = answer_list[answer_begin_idx - 1][1]
             _prev_convert_rule += f"{_word}/{_pos} "
@@ -165,15 +169,3 @@ class IrregularParser:
             _pos = answer_list[i][1]
             _convert_rule += f"{_word}/{_pos} "
         return problem, _convert_rule.strip()
-
-text = "고거는\t고거/NNP"
-# text = "너라고\t너/VV 이/SS 라고/VV"
-# text = "알리가\t알/VV ㄹ/SS 리가/VV"
-corpus_parser = CorpusParser()
-problem_answer_info = corpus_parser.parse(text)
-
-irregular_parser = IrregularParser()
-irregular_parser.parse(
-    KoreanUnitParser.parse(problem_answer_info.get_problem()),
-    [(KoreanUnitParser.parse(_word), _pos) for _word, _pos in problem_answer_info.get_answer_list()]
-)

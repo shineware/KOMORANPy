@@ -50,4 +50,4 @@ class Dictionary:
         print(self._dictionary)
 
     def __repr__(self):
-        return (f'Dictionary: {self._dictionary}')
+        return f'Dictionary: {self._dictionary}'

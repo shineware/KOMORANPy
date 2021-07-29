@@ -3,7 +3,10 @@ import os
 import shutil
 
 from common.dictionary import Dictionary
-from common.grammer import Grammar
+from common.grammar import Grammar
+from common.irregular_node import IrregularNode
+
+from common.irregular_trie import IrregularTrie
 from constant import FILENAME, SYMBOL
 from parser.korean_unit_parser import KoreanUnitParser
 from training.model.observation import Observation
@@ -32,7 +35,7 @@ class ModelBuilder:
         self._build_pos_table_(total_prev_pos_count)
         self._cal_transition_(total_prev_pos_count)
         self._cal_observation_(total_prev_pos_count)
-        # todo : save point 불규칙 모델링 구현
+        self._build_irregular_dic()
 
     def __get_total_prev_pos_count__(self):
         _pos_count_dic = {}
@@ -85,11 +88,29 @@ class ModelBuilder:
         self.transition.save(path + "/" + FILENAME.TRANSITION)
         self.observation.save(path + "/" + FILENAME.OBSERVATION)
         self.pos_table.save(path + "/" + FILENAME.POS_TABLE)
+        self.irr_trie.save(path + "/" + FILENAME.IRREGULAR_MODEL)
 
+    def _build_irregular_dic(self):
+        self.irr_trie = IrregularTrie()
+        for irr_pattern in self.irr_dic.get_dict():
+            irr_pattern_jaso = self.unit_parser.parse(irr_pattern)
+            convert_rule_freq_dic = self.irr_dic.get_dict().get(irr_pattern)
+            for convert_rule in convert_rule_freq_dic:
+                # todo : KOMORAN에서는 빈도수로 pruning 하는 로직이 있음
+                convert_freq = convert_rule_freq_dic.get(convert_rule)
+                irr_node = self.make_irr_node(irr_pattern_jaso, self.unit_parser.parse(convert_rule))
+                self.irr_trie.put(irr_pattern_jaso, irr_node)
 
-# model_builder = ModelBuilder()
-# model_builder.build_path("corpus_build")
-a = 1
-b = 2
-c = a / b
-print(c)
+    def make_irr_node(self, irr_pattern_jaso, convert_rule_jaso):
+        # todo : KOMORAN 코드 구조에서 보면 first pos id와 irregular tokens 정보만 있으면 되는 것으로 보임
+        irr_node = IrregularNode()
+        irr_tokens = []
+        tokens = convert_rule_jaso.split(' ')
+        for idx, token in enumerate(tokens):
+            morph, pos = token.rsplit('/', 1)
+            pos_id = self.pos_table.get_id(pos)
+            if idx == 0:
+                irr_node.set_first_pos_id(pos_id)
+            irr_tokens.append((morph, pos_id))
+        irr_node.set_tokens(irr_tokens)
+        return irr_node

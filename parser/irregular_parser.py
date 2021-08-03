@@ -1,5 +1,4 @@
-from parser.corpus_parser import CorpusParser
-from parser.korean_unit_parser import is_korean, KoreanUnitParser
+from parser.korean_unit_parser import is_korean
 
 
 class IrregularParser:

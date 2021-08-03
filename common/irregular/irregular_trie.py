@@ -1,4 +1,4 @@
-from common.ahocorasick_dictionary import AhoCorasickDictionary
+from common.ahocorasick.ahocorasick_dictionary import AhoCorasickDictionary
 
 
 class IrregularTrie:

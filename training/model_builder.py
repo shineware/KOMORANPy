@@ -4,9 +4,9 @@ import shutil
 
 from common.dictionary import Dictionary
 from common.grammar import Grammar
-from common.irregular_node import IrregularNode
+from common.irregular.irregular_node import IrregularNode
 
-from common.irregular_trie import IrregularTrie
+from common.irregular.irregular_trie import IrregularTrie
 from constant import FILENAME, SYMBOL
 from parser.korean_unit_parser import KoreanUnitParser
 from training.model.observation import Observation

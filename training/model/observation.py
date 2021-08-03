@@ -1,4 +1,4 @@
-from common.ahocorasick_dictionary import AhoCorasickDictionary
+from common.ahocorasick.ahocorasick_dictionary import AhoCorasickDictionary
 from parser.korean_unit_parser import KoreanUnitParser
 
 

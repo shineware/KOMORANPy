@@ -1,7 +1,7 @@
 import gzip
 import pickle
 
-from common.ahocorasick_node import AhoCorasickNode
+from common.ahocorasick.ahocorasick_node import AhoCorasickNode
 
 
 class FindContext:

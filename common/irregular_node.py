@@ -11,3 +11,8 @@ class IrregularNode:
 
     def get_tokens(self):
         return self.irr_node_tokens
+
+    def __eq__(self, other):
+        if isinstance(other, IrregularNode):
+            return self.first_pos_id == other.first_pos_id and self.irr_node_tokens == other.irr_node_tokens
+        return False

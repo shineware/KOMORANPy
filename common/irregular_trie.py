@@ -12,7 +12,6 @@ class IrregularTrie:
         else:
             include_same_node = False
             for _irr_node in irr_nodes:
-                # todo : need to check, class 간의 비교가 정상적으로 동작하는지 확인 필요
                 if irr_node == _irr_node:
                     include_same_node = True
                     break

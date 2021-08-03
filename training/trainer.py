@@ -9,3 +9,5 @@ corpus_builder.save("corpus_build")
 model_builder = ModelBuilder()
 model_builder.build_path("corpus_build")
 model_builder.save("komoran_model")
+
+# todo : here we go! model builder 까지 생성 완료!

@@ -129,3 +129,6 @@ dmypy.json
 .pyre/
 
 .idea/
+
+komoran_model/
+corpus_build/

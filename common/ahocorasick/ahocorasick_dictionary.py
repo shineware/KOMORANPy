@@ -70,6 +70,7 @@ class AhoCorasickDictionary:
                     child_node = child_node.get_fail_node()
                 context.set_current_node(child_nodes.get(key))
             break
+        return result_dic
 
     def get_value(self, keys):
         node = self.root_node

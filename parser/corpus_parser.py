@@ -29,7 +29,7 @@ class CorpusParser:
             _split_idx = _token.rindex('/')
             _word = _token[0:_split_idx].strip()
             _pos = _token[_split_idx + 1:].strip()
-            if len(_word) == 0 or len(_pos) == 0:
+            if len(_word) == 0 or len(_pos) == 0 or _pos == 'NA':
                 sys.stderr.write("Corpus format error (CorpusParser._parser_answer): " + answer_texts + "\n")
                 return False
             self._answer_list.append((_word, _pos))

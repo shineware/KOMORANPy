@@ -11,7 +11,10 @@ class Transition:
         self.score_matrix[prev_pos_id][cur_pos_id] = score
 
     def get(self, prev_pos_id, cur_pos_id):
-        return self.score_matrix[prev_pos_id][cur_pos_id]
+        score = self.score_matrix[prev_pos_id][cur_pos_id]
+        if score == -np.inf:
+            return None
+        return score
 
     def save(self, filename):
         with gzip.open(filename, 'wb') as f:

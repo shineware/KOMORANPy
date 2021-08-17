@@ -31,8 +31,8 @@ class PosTable:
                 if len(line) == 0:
                     continue
                 pos, pos_id = line.split('\t')
-                self.pos_id_table[pos] = pos_id
-                self.id_pos_table[pos_id] = pos
+                self.pos_id_table[pos] = int(pos_id)
+                self.id_pos_table[int(pos_id)] = pos
         # todo : 세종 테그셋 id를 빌드하는 부분은 생략 됨
 
 

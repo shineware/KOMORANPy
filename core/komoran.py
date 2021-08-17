@@ -1,3 +1,5 @@
+import math
+
 from common.irregular.irregular_trie import IrregularTrie
 from constant import FILENAME, SYMBOL
 from parser.korean_unit_parser import KoreanUnitParser
@@ -22,12 +24,72 @@ class Model:
 
 class LatticeNode:
     def __init__(self, begin_idx, end_idx, word, pos, pos_id, score):
-        self.begin_idx = begin_idx
-        self.end_idx = end_idx
-        self.word = word
-        self.pos = pos
-        self.pos_id = pos_id
-        self.score = score
+        self.__begin_idx = begin_idx
+        self.__end_idx = end_idx
+        self.__word = word
+        self.__pos = pos
+        self.__pos_id = pos_id
+        self.__score = score
+        self.__prev_node_idx = -1
+
+    def __repr__(self):
+        return f"""(begin_idx={self.__begin_idx}, end_idx={self.end_idx}, word={self.word}, pos={self.pos}, pos_id={self.pos_id}, score={self.score}, prev_nod_idx={self.prev_node_idx})"""
+
+    @property
+    def begin_idx(self):
+        return self.__begin_idx
+
+    @begin_idx.setter
+    def begin_idx(self, value):
+        self.__begin_idx = value
+
+    @property
+    def end_idx(self):
+        return self.__end_idx
+
+    @end_idx.setter
+    def end_idx(self, value):
+        self.__end_idx = value
+
+    @property
+    def word(self):
+        return self.__word
+
+    @word.setter
+    def word(self, value):
+        self.__word = value
+
+    @property
+    def pos(self):
+        return self.__pos
+
+    @pos.setter
+    def pos(self, value):
+        self.pos = value
+
+    @property
+    def pos_id(self):
+        return self.__pos_id
+
+    @pos_id.setter
+    def pos_id(self, value):
+        self.__pos_id = value
+
+    @property
+    def score(self):
+        return self.__score
+
+    @score.setter
+    def score(self, value):
+        self.__score = value
+
+    @property
+    def prev_node_idx(self):
+        return self.__prev_node_idx
+
+    @prev_node_idx.setter
+    def prev_node_idx(self, value):
+        self.__prev_node_idx = value
 
 
 class Lattice:
@@ -51,6 +113,65 @@ class Lattice:
 
     def get_observation(self, jaso_unit):
         return self.model.observation.get_dictionary().get(jaso_unit, self.observation_context)
+
+    def put(self, begin_idx, end_idx, word, pos, pos_id, observation_score):
+        prev_lattice_nodes = self.lattice.get(begin_idx)
+        if prev_lattice_nodes is None:
+            return False
+        else:
+            max_lattice_node = self.get_max_transition_node(prev_lattice_nodes, begin_idx, end_idx, word, pos, pos_id,
+                                                            observation_score)
+            if max_lattice_node is not None:
+                self.append_node(max_lattice_node)
+                return True
+        return False
+
+    def get_max_transition_node(self, prev_lattice_nodes, begin_idx, end_idx, word, pos, pos_id, observation_score):
+        prev_max_node = None
+        max_score = -math.inf
+        lattice_node_idx = -1
+        prev_lattice_node_idx = -1
+        for prev_lattice_node in prev_lattice_nodes:
+            lattice_node_idx += 1
+            # 불규칙인 경우
+            if prev_lattice_node.pos_id == -1:
+                continue
+
+            prev_pos_id = -1
+            prev_word = ''
+            if prev_lattice_node.pos == SYMBOL.EOE:
+                prev_pos_id = self.model.pos_table.get_id(SYMBOL.BOE)
+                prev_word = SYMBOL.BOE
+            else:
+                prev_pos_id = prev_lattice_node.pos_id
+                prev_word = prev_lattice_node.word
+
+            # 전이확률 값
+            transition_score = self.model.transition.get(prev_pos_id, pos_id)
+            if transition_score is None:
+                continue
+
+            # todo : 결합 규칙 체크 부분은 생략 됨
+
+            prev_observation_score = prev_lattice_node.score
+            if max_score < transition_score + prev_observation_score:
+                max_score = transition_score + prev_observation_score
+                prev_max_node = prev_lattice_node
+                prev_lattice_node_idx = lattice_node_idx
+        if prev_max_node is not None:
+            lattice_node = LatticeNode(begin_idx, end_idx, word, pos, pos_id, max_score + observation_score)
+            lattice_node.prev_node_idx = prev_lattice_node_idx
+            return lattice_node
+
+        return None
+
+    def append_node(self, lattice_node):
+        lattice_nodes = self.lattice.get(lattice_node.end_idx)
+        if lattice_nodes is None:
+            lattice_nodes = []
+        lattice_nodes.append(lattice_node)
+        self.lattice[lattice_node.end_idx] = lattice_nodes
+        return len(lattice_nodes) - 1
 
 
 class Komoran:
@@ -83,7 +204,34 @@ class Komoran:
             # todo : here we go! 각종 파서 개발 필요
             self.regular_parsing(lattice, jaso_unit, idx)
 
-    @staticmethod
-    def regular_parsing(lattice, jaso_unit, idx):
-        print(lattice.get_observation(jaso_unit))
+        last_idx = len(jaso_units)
+        # 단어 끝에 어절 마지막 노드 추가
+        lattice.put(last_idx, last_idx + 1, SYMBOL.EOE, SYMBOL.EOE, self.model.pos_table.get_id(SYMBOL.EOE), 0)
+        last_idx += 1
 
+        for i in range(0, last_idx + 1):
+            lattice_nodes = lattice.lattice.get(i)
+            if lattice_nodes is None:
+                continue
+            print(f'{i} :')
+            for lattice_node in lattice_nodes:
+                print(f'\t{lattice_node}')
+
+    def regular_parsing(self, lattice, jaso_unit, idx):
+        # 아래와 같은 형태가 리턴 됨
+        # {
+        #   'ㅈㅏㅈ': [('VA', 20, -3.2449828635675546), ('VV', 14, -5.561212329330546)],
+        #   'ㅈ': [('NNG', 2, -4.833270674064261)]
+        # }
+        word_with_pos_scores = lattice.get_observation(jaso_unit)
+        if len(word_with_pos_scores) == 0:
+            return
+        for word, pos_scores in word_with_pos_scores.items():
+            begin_idx = idx - len(word) + 1
+            end_idx = idx + 1
+            for pos, pos_id, observation_score in pos_scores:
+                lattice.put(begin_idx, end_idx, word, pos, pos_id, observation_score)
+
+
+komoran = Komoran("../training/komoran_model")
+komoran.analyze("감기는")

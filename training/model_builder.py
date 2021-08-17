@@ -67,6 +67,7 @@ class ModelBuilder:
                 prev_freq = total_prev_pos_count.get(prev_pos)
                 # todo : NNP인 경우에 빈도수를 뻥튀기 하는 부분은 구현하지 않음
                 transition_score = prev_to_cur_freq / prev_freq
+                transition_score = math.log(transition_score)
                 prev_pos_id = self.pos_table.get_id(prev_pos)
                 cur_pos_id = self.pos_table.get_id(cur_pos)
                 self.transition.put(prev_pos_id, cur_pos_id, transition_score)
@@ -78,7 +79,7 @@ class ModelBuilder:
             for pos in pos_freq_dic:
                 total_count = total_prev_pos_count.get(pos)
                 observation_score = pos_freq_dic[pos] / total_count
-                observation_score = math.log10(observation_score)
+                observation_score = math.log(observation_score)
                 self.observation.put(word, pos, self.pos_table.get_id(pos), observation_score)
 
     def save(self, path):

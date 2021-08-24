@@ -1,3 +1,4 @@
+import datetime
 import math
 
 from common.irregular.irregular_trie import IrregularTrie
@@ -31,9 +32,10 @@ class LatticeNode:
         self.__pos_id = pos_id
         self.__score = score
         self.__prev_node_idx = -1
+        self.__is_irregular = False
 
     def __repr__(self):
-        return f"""(begin_idx={self.__begin_idx}, end_idx={self.end_idx}, word={self.word}, pos={self.pos}, pos_id={self.pos_id}, score={self.score}, prev_nod_idx={self.prev_node_idx})"""
+        return f"""(begin_idx={self.__begin_idx}, end_idx={self.end_idx}, word={self.word}, pos={self.pos}, pos_id={self.pos_id}, score={self.score}, prev_node_idx={self.prev_node_idx}, is_irregular={self.__is_irregular})"""
 
     @property
     def begin_idx(self):
@@ -91,6 +93,14 @@ class LatticeNode:
     def prev_node_idx(self, value):
         self.__prev_node_idx = value
 
+    @property
+    def is_irregular(self):
+        return self.__is_irregular
+
+    @is_irregular.setter
+    def is_irregular(self, value):
+        self.__is_irregular = value
+
 
 class Lattice:
     def __init__(self, model, user_dic):
@@ -98,6 +108,21 @@ class Lattice:
         self.user_dic = user_dic
         self.init_node()
         self.make_new_contexts()
+
+    """
+    word_pos_list = [('ㄱㅗ', 15), (',', 5)]
+    """
+    def attach_info_to_word_pos_list(self, word_pos_list):
+        results = []
+        for word, pos_id in word_pos_list:
+            # return get_value 의 형태는 이런 식임 [('EC', 15, -2.107718373555622), ('EF', 19, -3.972572410841921)]
+            # todo : for 문을 돌면서 list에서 pos에 해당하는 score 값을 찾아야 하기 때문에 이 부분은 추후 개선의 여지가 필요함
+            # observation score 가져오기
+            for _pos, _pos_id, _score in self.model.observation.get_dictionary().get_value(word):
+                if pos_id == _pos_id:
+                    results.append((word, _pos, pos_id, _score))
+                    break
+        return results
 
     def make_new_contexts(self):
         self.observation_context = self.model.observation.get_dictionary().new_find_context()
@@ -114,7 +139,10 @@ class Lattice:
     def get_observation(self, jaso_unit):
         return self.model.observation.get_dictionary().get(jaso_unit, self.observation_context)
 
-    def put(self, begin_idx, end_idx, word, pos, pos_id, observation_score):
+    def get_irregular_nodes(self, jaso_unit):
+        return self.model.irr_trie.get_dictionary().get(jaso_unit, self.irregular_context)
+
+    def put(self, begin_idx, end_idx, word, pos, pos_id, observation_score, is_irregular=False):
         prev_lattice_nodes = self.lattice.get(begin_idx)
         if prev_lattice_nodes is None:
             return False
@@ -122,6 +150,7 @@ class Lattice:
             max_lattice_node = self.get_max_transition_node(prev_lattice_nodes, begin_idx, end_idx, word, pos, pos_id,
                                                             observation_score)
             if max_lattice_node is not None:
+                max_lattice_node.is_irregular = is_irregular
                 self.append_node(max_lattice_node)
                 return True
         return False
@@ -176,9 +205,11 @@ class Lattice:
 
 class Komoran:
     def __init__(self, model_path):
+        print(f'load model : {model_path}')
         self.model = Model(model_path)
         self.unit_parser = KoreanUnitParser()
         self.user_dic = None
+        print(f'load done')
 
     def set_user_dic(self, user_dic_path):
         self.user_dic = Observation()
@@ -200,22 +231,41 @@ class Komoran:
     def analyze(self, sentence):
         lattice = Lattice(self.model, self.user_dic)
         jaso_units = self.unit_parser.parse(sentence)
+        irr_idx = -1
         for idx, jaso_unit in enumerate(jaso_units):
-            # todo : here we go! 각종 파서 개발 필요
+            # todo : here we go! 각종 파서 개발 필요 불규칙 확장 로직 추가 필요!
             self.regular_parsing(lattice, jaso_unit, idx)
+            irr_idx = self.irregular_parsing(lattice, jaso_unit, idx, irr_idx)
 
         last_idx = len(jaso_units)
         # 단어 끝에 어절 마지막 노드 추가
         lattice.put(last_idx, last_idx + 1, SYMBOL.EOE, SYMBOL.EOE, self.model.pos_table.get_id(SYMBOL.EOE), 0)
         last_idx += 1
 
-        for i in range(0, last_idx + 1):
-            lattice_nodes = lattice.lattice.get(i)
-            if lattice_nodes is None:
-                continue
-            print(f'{i} :')
-            for lattice_node in lattice_nodes:
-                print(f'\t{lattice_node}')
+        # for i in range(irr_idx, last_idx + 1):
+        #     lattice_nodes = lattice.lattice.get(i)
+        #     if lattice_nodes is None:
+        #         continue
+        #     print(f'{i} :')
+        #     for lattice_node in lattice_nodes:
+        #         print(f'\t{lattice_node}')
+
+        # get max transitions
+        result = []
+        end_node = lattice.lattice.get(last_idx)[0]
+        begin_idx = end_node.begin_idx
+        prev_node_idx = end_node.prev_node_idx
+        while True:
+            node = lattice.lattice.get(begin_idx)[prev_node_idx]
+            if node.word == SYMBOL.BOE:
+                break
+            word = node.word
+            pos = node.pos
+            result.append((word, pos))
+            begin_idx = node.begin_idx
+            prev_node_idx = node.prev_node_idx
+        for word, pos in reversed(result):
+            print(f"{word}/{pos}")
 
     def regular_parsing(self, lattice, jaso_unit, idx):
         # 아래와 같은 형태가 리턴 됨
@@ -232,6 +282,44 @@ class Komoran:
             for pos, pos_id, observation_score in pos_scores:
                 lattice.put(begin_idx, end_idx, word, pos, pos_id, observation_score)
 
+    def irregular_parsing(self, lattice, jaso_unit, idx, irr_idx):
+        # get_irregular_nodes 는 아래와 같은 형태가 리턴 됨
+        # {
+        #   'ㄱㅏ': [('ㅇㅓ', 15), ('ㄱㅏ', 27), ('ㅇㅏ', 15)]
+        # }
+        word_with_irr_nodes = lattice.get_irregular_nodes(jaso_unit)
+        if len(word_with_irr_nodes) == 0:
+            return irr_idx
+        for word, irr_nodes in word_with_irr_nodes.items():
+            begin_idx = idx - len(word) + 1
+            end_idx = idx + 1
+            for irr_node in irr_nodes:
+                word_with_pos_scores = lattice.attach_info_to_word_pos_list(irr_node.get_tokens())
+                irregular_node_tokens_size = len(word_with_pos_scores)
+                if irregular_node_tokens_size == 1:
+                    _word, pos, pos_id, observation_score = word_with_pos_scores[0]
+                    lattice.put(begin_idx, end_idx, _word, pos, pos_id, observation_score, True)
+                    irr_idx -= 1
+                else:
+                    cnt = 0
+                    for _word, pos, pos_id, observation_score in word_with_pos_scores:
+                        if cnt == 0:
+                            lattice.put(begin_idx, irr_idx, _word, pos, pos_id, observation_score, True)
+                        elif cnt == len(word_with_pos_scores)-1:
+                            lattice.put(irr_idx+1, end_idx, _word, pos, pos_id, observation_score, True)
+                        else:
+                            lattice.put(irr_idx+1, irr_idx, _word, pos, pos_id, observation_score, True)
+                        irr_idx -= 1
+                        cnt += 1
+        return irr_idx
+
 
 komoran = Komoran("../training/komoran_model")
-komoran.analyze("감기는")
+begin_time = datetime.datetime.now()
+# komoran.analyze("골렸어")
+komoran.analyze("하늘에서남자들이내려왔어")
+end_time = datetime.datetime.now()
+delta = end_time - begin_time
+print(delta.total_seconds() * 1000)
+# lattice = Lattice(komoran.model, komoran.user_dic)
+# lattice.split_irr_nodes([('ㄱㅗㄹㄹㅣ', 14), ('ㅇㅓ', 15)])

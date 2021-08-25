@@ -112,6 +112,7 @@ class Lattice:
     """
     word_pos_list = [('ㄱㅗ', 15), (',', 5)]
     """
+
     def attach_info_to_word_pos_list(self, word_pos_list):
         results = []
         for word, pos_id in word_pos_list:
@@ -163,7 +164,10 @@ class Lattice:
         for prev_lattice_node in prev_lattice_nodes:
             lattice_node_idx += 1
             # 불규칙인 경우
+            # todo : KOMORAN에서는 pos_id == -1 인 경우(불규칙 확장. 일반 불규칙이 아님)에 continue 했음.
+            # if prev_lattice_node.is_irregular:
             if prev_lattice_node.pos_id == -1:
+                print(f"pos_id is -1! : {prev_lattice_node}")
                 continue
 
             prev_pos_id = -1
@@ -236,6 +240,7 @@ class Komoran:
             # todo : here we go! 각종 파서 개발 필요 불규칙 확장 로직 추가 필요!
             self.regular_parsing(lattice, jaso_unit, idx)
             irr_idx = self.irregular_parsing(lattice, jaso_unit, idx, irr_idx)
+            self.irregular_extend(lattice, jaso_unit, idx)
 
         last_idx = len(jaso_units)
         # 단어 끝에 어절 마지막 노드 추가
@@ -305,19 +310,33 @@ class Komoran:
                     for _word, pos, pos_id, observation_score in word_with_pos_scores:
                         if cnt == 0:
                             lattice.put(begin_idx, irr_idx, _word, pos, pos_id, observation_score, True)
-                        elif cnt == len(word_with_pos_scores)-1:
-                            lattice.put(irr_idx+1, end_idx, _word, pos, pos_id, observation_score, True)
+                        elif cnt == len(word_with_pos_scores) - 1:
+                            lattice.put(irr_idx + 1, end_idx, _word, pos, pos_id, observation_score, True)
                         else:
-                            lattice.put(irr_idx+1, irr_idx, _word, pos, pos_id, observation_score, True)
+                            lattice.put(irr_idx + 1, irr_idx, _word, pos, pos_id, observation_score, True)
                         irr_idx -= 1
                         cnt += 1
         return irr_idx
 
+    def irregular_extend(self, lattice, jaso_unit, idx):
+        prev_lattice_nodes = lattice.lattice.get(idx)
+        if prev_lattice_nodes is None:
+            return
+        for prev_lattice_node in prev_lattice_nodes:
+            if prev_lattice_node.is_irregular:
+                extended_word = prev_lattice_node.word + jaso_unit
+                # get_value 리턴 형태 = [('EP', 29, -0.723657199450198), ('VV', 14, -13.721442706150867)]
+                observation_values = self.model.observation.get_dictionary().get_value(extended_word)
+                if observation_values is None:
+                    continue
+                for pos, pos_id, score in observation_values:
+                    lattice.put(prev_lattice_node.begin_idx, idx + 1, extended_word, pos, pos_id, score)
+
 
 komoran = Komoran("../training/komoran_model")
 begin_time = datetime.datetime.now()
-# komoran.analyze("골렸어")
-komoran.analyze("하늘에서남자들이내려왔어")
+# komoran.analyze("골렸어")  # --> 골리/VV 었/EP 어/EC 가 정답임
+komoran.analyze("샀으니")  # --> 사/VV 았/EP 으니/EC 가 정답임
 end_time = datetime.datetime.now()
 delta = end_time - begin_time
 print(delta.total_seconds() * 1000)

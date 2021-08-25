@@ -125,7 +125,7 @@ class CorpusBuilder:
         self.irr_dic = Dictionary(self._pruning_dic(self.irr_dic.get_dict()))
 
     @staticmethod
-    def _pruning_dic(dic, freq_threshold=2):
+    def _pruning_dic(dic, freq_threshold=5):
         _pruned_dic = {}
         for _word, _pos_freq_dic in dic.items():
             _pruned_pos_freq_dic = {}

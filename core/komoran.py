@@ -163,8 +163,9 @@ class Lattice:
         prev_lattice_node_idx = -1
         for prev_lattice_node in prev_lattice_nodes:
             lattice_node_idx += 1
-            # 불규칙인 경우
-            # todo : KOMORAN에서는 pos_id == -1 인 경우(불규칙 확장. 일반 불규칙이 아님)에 continue 했음.
+            # 불규칙 확장인 경우
+            # todo : KOMORAN에서는 pos_id == -1 인 경우(불규칙 확장. 일반 불규칙이 아님)에 continue 했으나 해당 로직이 왜 필요한지는 의문...
+            # 일단 KOMORAN 의 불규칙 확장 알고리즘 중 자식 노드 유무에 따라 탐색 후보로 등록하는 부분이 제외되었기 때문에 아래 continue 부분은 실제로 걸리는 케이스가 없음
             # if prev_lattice_node.is_irregular:
             if prev_lattice_node.pos_id == -1:
                 print(f"pos_id is -1! : {prev_lattice_node}")
@@ -237,10 +238,10 @@ class Komoran:
         jaso_units = self.unit_parser.parse(sentence)
         irr_idx = -1
         for idx, jaso_unit in enumerate(jaso_units):
-            # todo : here we go! 각종 파서 개발 필요 불규칙 확장 로직 추가 필요!
+            # todo : here we go! 띄어쓰기 로직 추가
             self.regular_parsing(lattice, jaso_unit, idx)
             irr_idx = self.irregular_parsing(lattice, jaso_unit, idx, irr_idx)
-            self.irregular_extend(lattice, jaso_unit, idx)
+            self.irregular_extends(lattice, jaso_unit, idx)
 
         last_idx = len(jaso_units)
         # 단어 끝에 어절 마지막 노드 추가
@@ -296,6 +297,7 @@ class Komoran:
         if len(word_with_irr_nodes) == 0:
             return irr_idx
         for word, irr_nodes in word_with_irr_nodes.items():
+            # print(f"{word} -> {irr_nodes}")
             begin_idx = idx - len(word) + 1
             end_idx = idx + 1
             for irr_node in irr_nodes:
@@ -318,7 +320,9 @@ class Komoran:
                         cnt += 1
         return irr_idx
 
-    def irregular_extend(self, lattice, jaso_unit, idx):
+    def irregular_extends(self, lattice, jaso_unit, idx):
+        # todo : KOMORAN에서는 현재 자소를 뒤에 붙여서 확장하는 방법 외에 자식 노드가 있으면 계속 탐색 가능하게 처리하는 로직이 있음.
+        # 그러나 해당 로직으로 인해서 어떠한 장점이 있는지 확인되지 않음. 그렇기 때문에 KOMORANPy 에서는 생략.
         prev_lattice_nodes = lattice.lattice.get(idx)
         if prev_lattice_nodes is None:
             return
@@ -335,8 +339,11 @@ class Komoran:
 
 komoran = Komoran("../training/komoran_model")
 begin_time = datetime.datetime.now()
-# komoran.analyze("골렸어")  # --> 골리/VV 었/EP 어/EC 가 정답임
+komoran.analyze("골렸어")  # --> 골리/VV 었/EP 어/EC 가 정답임
 komoran.analyze("샀으니")  # --> 사/VV 았/EP 으니/EC 가 정답임
+komoran.analyze("이어져서")  # --> 이어지/VV 어서/EC 가 정답임
+komoran.analyze("러너라는")  # --> 러너/NNG 이라는
+komoran.analyze("을ㅋ박라퀩겼")
 end_time = datetime.datetime.now()
 delta = end_time - begin_time
 print(delta.total_seconds() * 1000)

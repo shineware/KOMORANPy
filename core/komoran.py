@@ -238,7 +238,7 @@ class Komoran:
         jaso_units = self.unit_parser.parse(sentence)
         irr_idx = -1
         for idx, jaso_unit in enumerate(jaso_units):
-            # todo : here we go! 띄어쓰기 로직 추가
+            # todo : here we go! 띄어쓰기 처리, 기분석 사전, 사용자 사전, 기호 처리
             self.regular_parsing(lattice, jaso_unit, idx)
             irr_idx = self.irregular_parsing(lattice, jaso_unit, idx, irr_idx)
             self.irregular_extends(lattice, jaso_unit, idx)

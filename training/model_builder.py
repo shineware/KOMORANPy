@@ -71,6 +71,7 @@ class ModelBuilder:
                 prev_pos_id = self.pos_table.get_id(prev_pos)
                 cur_pos_id = self.pos_table.get_id(cur_pos)
                 self.transition.put(prev_pos_id, cur_pos_id, transition_score)
+        self.transition.put(self.pos_table.get_id(SYMBOL.NA), self.pos_table.get_id(SYMBOL.EOE), -10000.0)
 
     def _cal_observation_(self, total_prev_pos_count):
         self.observation = Observation()

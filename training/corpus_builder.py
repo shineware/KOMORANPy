@@ -118,21 +118,28 @@ class CorpusBuilder:
 
     def _pruning(self):
         # dic pruning
-        self.word_dic = Dictionary(self._pruning_dic(self.word_dic.get_dict()))
+        pruned_dic, pruned_words = self._pruning_dic(self.word_dic.get_dict())
+        self.word_dic = Dictionary(pruned_dic)
+        with open('excluded_nouns.txt', 'w') as f:
+            for word in pruned_words:
+                f.write(word + "\n")
         # grammar pruning
-        self.grammar = Grammar(self._pruning_dic(self.grammar.get_grammar()))
+        self.grammar = Grammar(self._pruning_dic(self.grammar.get_grammar())[0])
         # irregular dic pruning
-        self.irr_dic = Dictionary(self._pruning_dic(self.irr_dic.get_dict()))
+        self.irr_dic = Dictionary(self._pruning_dic(self.irr_dic.get_dict())[0])
 
     @staticmethod
     def _pruning_dic(dic, freq_threshold=5):
         _pruned_dic = {}
+        _pruned_words = []
         for _word, _pos_freq_dic in dic.items():
             _pruned_pos_freq_dic = {}
             for _pos, _freq in _pos_freq_dic.items():
                 if _freq < freq_threshold:
+                    if _pos == 'NNG' or _pos == 'NNP':
+                        _pruned_words.append(_word)
                     continue
                 _pruned_pos_freq_dic[_pos] = _freq
             if len(_pruned_pos_freq_dic) != 0:
                 _pruned_dic[_word] = _pruned_pos_freq_dic
-        return _pruned_dic
+        return _pruned_dic, _pruned_words

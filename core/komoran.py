@@ -117,7 +117,7 @@ class Lattice:
         results = []
         for word, pos_id in word_pos_list:
             # return get_value 의 형태는 이런 식임 [('EC', 15, -2.107718373555622), ('EF', 19, -3.972572410841921)]
-            # todo : for 문을 돌면서 list에서 pos에 해당하는 score 값을 찾아야 하기 때문에 이 부분은 추후 개선의 여지가 필요함
+            # todo : for 문을 돌면서 list에서 pos에 해당하는 score 값을 찾아야 하기 때문에 이 부분은 추후 개선의 여지가 필요함 ( 바로 찾을 수 있는 방법.. )
             # observation score 가져오기
             for _pos, _pos_id, _score in self.model.observation.get_dictionary().get_value(word):
                 if pos_id == _pos_id:
@@ -214,6 +214,7 @@ class Komoran:
         self.model = Model(model_path)
         self.unit_parser = KoreanUnitParser()
         self.user_dic = None
+        self.fwd = None
         print(f'load done')
 
     def set_user_dic(self, user_dic_path):
@@ -233,19 +234,40 @@ class Komoran:
                 self.user_dic.put(word, pos, self.model.pos_table.get_id(pos), 0.0)
         self.user_dic.get_dictionary().build_fail_link()
 
+    def set_fwd(self, fwd_path):
+        with open(fwd_path, 'r') as f:
+            for line in f.readlines():
+                line = line.strip()
+                if len(line) == 0 or line[0] == '#':
+                    continue
+                tokens = line.split('\t')
+                if len(tokens) != 2:
+                    continue
+                target_word = tokens[0]
+                analyzed_results = []
+                for analyzed_result in tokens[1].split(' '):
+                    word, pos = analyzed_result.rsplit('/', 1)
+                    analyzed_results.append((word, pos))
+                self.fwd[target_word] = analyzed_results
+
     def analyze(self, sentence):
         lattice = Lattice(self.model, self.user_dic)
         jaso_units = self.unit_parser.parse(sentence)
         irr_idx = -1
+        whitespace_idx = 0
         for idx, jaso_unit in enumerate(jaso_units):
-            # todo : here we go! 띄어쓰기 처리, 기분석 사전, 사용자 사전, 기호 처리
+            # todo : here we go! 기분석 사전, 사용자 사전, 기호 처리
+            # self.lookup_fwd(lattice, jaso_unit, idx)
+            if jaso_unit == ' ':
+                self.bridging_lattice(lattice, whitespace_idx, idx, jaso_units)
+                whitespace_idx = idx + 1
             self.regular_parsing(lattice, jaso_unit, idx)
             irr_idx = self.irregular_parsing(lattice, jaso_unit, idx, irr_idx)
             self.irregular_extends(lattice, jaso_unit, idx)
 
         last_idx = len(jaso_units)
         # 단어 끝에 어절 마지막 노드 추가
-        lattice.put(last_idx, last_idx + 1, SYMBOL.EOE, SYMBOL.EOE, self.model.pos_table.get_id(SYMBOL.EOE), 0)
+        self.bridging_lattice(lattice, whitespace_idx, last_idx, jaso_units)
         last_idx += 1
 
         # for i in range(irr_idx, last_idx + 1):
@@ -270,8 +292,8 @@ class Komoran:
             result.append((word, pos))
             begin_idx = node.begin_idx
             prev_node_idx = node.prev_node_idx
-        for word, pos in reversed(result):
-            print(f"{word}/{pos}")
+        # for word, pos in reversed(result):
+        #     print(f"{word}/{pos}")
 
     def regular_parsing(self, lattice, jaso_unit, idx):
         # 아래와 같은 형태가 리턴 됨
@@ -336,16 +358,48 @@ class Komoran:
                 for pos, pos_id, score in observation_values:
                     lattice.put(prev_lattice_node.begin_idx, idx + 1, extended_word, pos, pos_id, score)
 
+    def lookup_fwd(self, lattice, jaso_unit, idx):
+        pass
+
+    def bridging_lattice(self, lattice, whitespace_idx, idx, jaso_units):
+        end_node_inserted = lattice.put(idx, idx + 1, SYMBOL.EOE, SYMBOL.EOE, self.model.pos_table.get_id(SYMBOL.EOE), 0.0)
+        # 마지막 노드가 추가되지 않았다면 NA임
+        if not end_node_inserted:
+            na_word = jaso_units[whitespace_idx:idx]
+            na_lattice_node = LatticeNode(whitespace_idx, idx, na_word, SYMBOL.NA, self.model.pos_table.get_id(SYMBOL.NA), -10000.0)
+            na_lattice_node.prev_node_idx = 0
+            na_node_idx = lattice.append_node(na_lattice_node)
+
+            end_lattice_node = LatticeNode(idx, idx+1, SYMBOL.EOE, SYMBOL.EOE, self.model.pos_table.get_id(SYMBOL.EOE), 0.0)
+            end_lattice_node.prev_node_idx = na_node_idx
+            lattice.append_node(end_lattice_node)
+
 
 komoran = Komoran("../training/komoran_model")
 begin_time = datetime.datetime.now()
+cnt = 0
+lines = []
+with open('stress.test', 'r') as f:
+    for line in f.readlines():
+        lines.append(line)
+delta = 0
+for line in lines:
+    begin_time = datetime.datetime.now()
+    komoran.analyze(line)
+    end_time = datetime.datetime.now()
+    delta += (end_time - begin_time).total_seconds()
+    cnt += 1
+    if cnt % 1000 == 0:
+        print(cnt)
+
 komoran.analyze("골렸어")  # --> 골리/VV 었/EP 어/EC 가 정답임
 komoran.analyze("샀으니")  # --> 사/VV 았/EP 으니/EC 가 정답임
 komoran.analyze("이어져서")  # --> 이어지/VV 어서/EC 가 정답임
 komoran.analyze("러너라는")  # --> 러너/NNG 이라는
-komoran.analyze("을ㅋ박라퀩겼")
-end_time = datetime.datetime.now()
-delta = end_time - begin_time
-print(delta.total_seconds() * 1000)
+komoran.analyze("이정도로 골렸어 뷁")
+komoran.analyze("뷁뷁 뷁부어")
+# end_time = datetime.datetime.now()
+# delta = end_time - begin_time
+print(delta * 1000)
 # lattice = Lattice(komoran.model, komoran.user_dic)
 # lattice.split_irr_nodes([('ㄱㅗㄹㄹㅣ', 14), ('ㅇㅓ', 15)])

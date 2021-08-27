@@ -132,3 +132,5 @@ dmypy.json
 
 komoran_model/
 corpus_build/
+
+.DS_Store

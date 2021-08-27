@@ -294,6 +294,7 @@ class Komoran:
             prev_node_idx = node.prev_node_idx
         # for word, pos in reversed(result):
         #     print(f"{word}/{pos}")
+        # print()
 
     def regular_parsing(self, lattice, jaso_unit, idx):
         # 아래와 같은 형태가 리턴 됨
@@ -391,15 +392,15 @@ for line in lines:
     cnt += 1
     if cnt % 1000 == 0:
         print(cnt)
-
-komoran.analyze("골렸어")  # --> 골리/VV 었/EP 어/EC 가 정답임
-komoran.analyze("샀으니")  # --> 사/VV 았/EP 으니/EC 가 정답임
-komoran.analyze("이어져서")  # --> 이어지/VV 어서/EC 가 정답임
-komoran.analyze("러너라는")  # --> 러너/NNG 이라는
-komoran.analyze("이정도로 골렸어 뷁")
-komoran.analyze("뷁뷁 뷁부어")
+print(delta * 1000)
+# komoran.analyze("골렸어")  # --> 골리/VV 었/EP 어/EC 가 정답임
+# komoran.analyze("샀으니")  # --> 사/VV 았/EP 으니/EC 가 정답임
+# komoran.analyze("이어져서")  # --> 이어지/VV 어서/EC 가 정답임
+# komoran.analyze("러너라는")  # --> 러너/NNG 이라는
+# komoran.analyze("이정도로 골렸어 뷁")
+# komoran.analyze("뷁뷁 뷁부어")
 # end_time = datetime.datetime.now()
 # delta = end_time - begin_time
-print(delta * 1000)
+# print(delta * 1000)
 # lattice = Lattice(komoran.model, komoran.user_dic)
 # lattice.split_irr_nodes([('ㄱㅗㄹㄹㅣ', 14), ('ㅇㅓ', 15)])

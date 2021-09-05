@@ -7,6 +7,7 @@ from parser.korean_unit_parser import KoreanUnitParser
 from training.model.observation import Observation
 from training.model.pos_table import PosTable
 from training.model.transition import Transition
+from util.timechecker import TimeChecker
 
 
 class Model:
@@ -255,19 +256,30 @@ class Komoran:
         jaso_units = self.unit_parser.parse(sentence)
         irr_idx = -1
         whitespace_idx = 0
+
         for idx, jaso_unit in enumerate(jaso_units):
             # todo : here we go! 기분석 사전, 사용자 사전, 기호 처리
             # self.lookup_fwd(lattice, jaso_unit, idx)
+            TimeChecker.start('bridge')
             if jaso_unit == ' ':
                 self.bridging_lattice(lattice, whitespace_idx, idx, jaso_units)
                 whitespace_idx = idx + 1
+            TimeChecker.end('bridge')
+            TimeChecker.start('regular')
             self.regular_parsing(lattice, jaso_unit, idx)
+            TimeChecker.end('regular')
+            TimeChecker.start('irregular')
             irr_idx = self.irregular_parsing(lattice, jaso_unit, idx, irr_idx)
+            TimeChecker.end('irregular')
+            TimeChecker.start('irregular_ext')
             self.irregular_extends(lattice, jaso_unit, idx)
+            TimeChecker.end('irregular_ext')
 
         last_idx = len(jaso_units)
         # 단어 끝에 어절 마지막 노드 추가
+        TimeChecker.start('bridge')
         self.bridging_lattice(lattice, whitespace_idx, last_idx, jaso_units)
+        TimeChecker.start('end')
         last_idx += 1
 
         # for i in range(irr_idx, last_idx + 1):
@@ -278,6 +290,7 @@ class Komoran:
         #     for lattice_node in lattice_nodes:
         #         print(f'\t{lattice_node}')
 
+        TimeChecker.start('transition')
         # get max transitions
         result = []
         end_node = lattice.lattice.get(last_idx)[0]
@@ -292,6 +305,7 @@ class Komoran:
             result.append((word, pos))
             begin_idx = node.begin_idx
             prev_node_idx = node.prev_node_idx
+        TimeChecker.end('transition')
         # for word, pos in reversed(result):
         #     print(f"{word}/{pos}")
         # print()
@@ -302,7 +316,10 @@ class Komoran:
         #   'ㅈㅏㅈ': [('VA', 20, -3.2449828635675546), ('VV', 14, -5.561212329330546)],
         #   'ㅈ': [('NNG', 2, -4.833270674064261)]
         # }
+        TimeChecker.start('regular_parsing_get_observation')
         word_with_pos_scores = lattice.get_observation(jaso_unit)
+        TimeChecker.end('regular_parsing_get_observation')
+        TimeChecker.start('regular_parsing_put')
         if len(word_with_pos_scores) == 0:
             return
         for word, pos_scores in word_with_pos_scores.items():
@@ -310,6 +327,7 @@ class Komoran:
             end_idx = idx + 1
             for pos, pos_id, observation_score in pos_scores:
                 lattice.put(begin_idx, end_idx, word, pos, pos_id, observation_score)
+        TimeChecker.end('regular_parsing_put')
 
     def irregular_parsing(self, lattice, jaso_unit, idx, irr_idx):
         # get_irregular_nodes 는 아래와 같은 형태가 리턴 됨
@@ -377,7 +395,7 @@ class Komoran:
 
 
 komoran = Komoran("../training/komoran_model")
-begin_time = datetime.datetime.now()
+from timeit import default_timer as timer
 cnt = 0
 lines = []
 with open('stress.test', 'r') as f:
@@ -385,14 +403,16 @@ with open('stress.test', 'r') as f:
         lines.append(line)
 delta = 0
 for line in lines:
-    begin_time = datetime.datetime.now()
+    start_time = timer()
     komoran.analyze(line)
-    end_time = datetime.datetime.now()
-    delta += (end_time - begin_time).total_seconds()
+    end_time = timer()
+    delta += (end_time - start_time)
     cnt += 1
     if cnt % 1000 == 0:
-        print(cnt)
-print(delta * 1000)
+        print(f"{cnt} : {delta}")
+        print(TimeChecker.elapsed_time_dict)
+print(delta)
+print(TimeChecker.elapsed_time_dict)
 # komoran.analyze("골렸어")  # --> 골리/VV 었/EP 어/EC 가 정답임
 # komoran.analyze("샀으니")  # --> 사/VV 았/EP 으니/EC 가 정답임
 # komoran.analyze("이어져서")  # --> 이어지/VV 어서/EC 가 정답임

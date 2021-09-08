@@ -1,4 +1,3 @@
-import datetime
 import math
 
 from common.irregular.irregular_trie import IrregularTrie
@@ -168,7 +167,6 @@ class Lattice:
             # 일단 KOMORAN 의 불규칙 확장 알고리즘 중 자식 노드 유무에 따라 탐색 후보로 등록하는 부분이 제외되었기 때문에 아래 continue 부분은 실제로 걸리는 케이스가 없음
             # if prev_lattice_node.is_irregular:
             if prev_lattice_node.pos_id == -1:
-                print(f"pos_id is -1! : {prev_lattice_node}")
                 continue
 
             prev_pos_id = -1
@@ -236,6 +234,7 @@ class Komoran:
 
     def set_fwd(self, fwd_path):
         with open(fwd_path, 'r') as f:
+            self.fwd = {}
             for line in f.readlines():
                 line = line.strip()
                 if len(line) == 0 or line[0] == '#':
@@ -248,22 +247,28 @@ class Komoran:
                 for analyzed_result in tokens[1].split(' '):
                     word, pos = analyzed_result.rsplit('/', 1)
                     analyzed_results.append((word, pos))
-                self.fwd[target_word] = analyzed_results
+                self.fwd[self.unit_parser.parse(target_word)] = analyzed_results
 
     def analyze(self, sentence):
         lattice = Lattice(self.model, self.user_dic)
         jaso_units = self.unit_parser.parse(sentence)
-        irr_idx = -1
+        extra_lattice_idx = -1
         whitespace_idx = 0
-        for idx, jaso_unit in enumerate(jaso_units):
+        idx = 0
+        while idx < len(jaso_units):
+            jaso_unit = jaso_units[idx]
             # todo : here we go! 기분석 사전, 사용자 사전, 기호 처리
-            # self.lookup_fwd(lattice, jaso_unit, idx)
+            next_whitespace_idx, extra_lattice_idx = self.lookup_fwd(lattice, jaso_units, idx, extra_lattice_idx)
+            if next_whitespace_idx != -1:
+                idx = next_whitespace_idx - 1
+                continue
             if jaso_unit == ' ':
                 self.bridging_lattice(lattice, whitespace_idx, idx, jaso_units)
                 whitespace_idx = idx + 1
             self.regular_parsing(lattice, jaso_unit, idx)
-            irr_idx = self.irregular_parsing(lattice, jaso_unit, idx, irr_idx)
+            extra_lattice_idx = self.irregular_parsing(lattice, jaso_unit, idx, extra_lattice_idx)
             self.irregular_extends(lattice, jaso_unit, idx)
+            idx += 1
 
         last_idx = len(jaso_units)
         # 단어 끝에 어절 마지막 노드 추가
@@ -292,8 +297,8 @@ class Komoran:
             result.append((word, pos))
             begin_idx = node.begin_idx
             prev_node_idx = node.prev_node_idx
-        # for word, pos in reversed(result):
-        #     print(f"{word}/{pos}")
+        for word, pos in reversed(result):
+            print(f"{word}/{pos}")
 
     def regular_parsing(self, lattice, jaso_unit, idx):
         # 아래와 같은 형태가 리턴 됨
@@ -310,14 +315,14 @@ class Komoran:
             for pos, pos_id, observation_score in pos_scores:
                 lattice.put(begin_idx, end_idx, word, pos, pos_id, observation_score)
 
-    def irregular_parsing(self, lattice, jaso_unit, idx, irr_idx):
+    def irregular_parsing(self, lattice, jaso_unit, idx, extra_lattice_idx):
         # get_irregular_nodes 는 아래와 같은 형태가 리턴 됨
         # {
         #   'ㄱㅏ': [('ㅇㅓ', 15), ('ㄱㅏ', 27), ('ㅇㅏ', 15)]
         # }
         word_with_irr_nodes = lattice.get_irregular_nodes(jaso_unit)
         if len(word_with_irr_nodes) == 0:
-            return irr_idx
+            return extra_lattice_idx
         for word, irr_nodes in word_with_irr_nodes.items():
             # print(f"{word} -> {irr_nodes}")
             begin_idx = idx - len(word) + 1
@@ -328,19 +333,20 @@ class Komoran:
                 if irregular_node_tokens_size == 1:
                     _word, pos, pos_id, observation_score = word_with_pos_scores[0]
                     lattice.put(begin_idx, end_idx, _word, pos, pos_id, observation_score, True)
-                    irr_idx -= 1
+                    extra_lattice_idx -= 1
                 else:
                     cnt = 0
                     for _word, pos, pos_id, observation_score in word_with_pos_scores:
                         if cnt == 0:
-                            lattice.put(begin_idx, irr_idx, _word, pos, pos_id, observation_score, True)
+                            lattice.put(begin_idx, extra_lattice_idx, _word, pos, pos_id, observation_score, True)
                         elif cnt == len(word_with_pos_scores) - 1:
-                            lattice.put(irr_idx + 1, end_idx, _word, pos, pos_id, observation_score, True)
+                            lattice.put(extra_lattice_idx + 1, end_idx, _word, pos, pos_id, observation_score, True)
                         else:
-                            lattice.put(irr_idx + 1, irr_idx, _word, pos, pos_id, observation_score, True)
-                        irr_idx -= 1
+                            lattice.put(extra_lattice_idx + 1, extra_lattice_idx, _word, pos, pos_id, observation_score,
+                                        True)
+                        extra_lattice_idx -= 1
                         cnt += 1
-        return irr_idx
+        return extra_lattice_idx
 
     def irregular_extends(self, lattice, jaso_unit, idx):
         # todo : KOMORAN에서는 현재 자소를 뒤에 붙여서 확장하는 방법 외에 자식 노드가 있으면 계속 탐색 가능하게 처리하는 로직이 있음.
@@ -358,48 +364,64 @@ class Komoran:
                 for pos, pos_id, score in observation_values:
                     lattice.put(prev_lattice_node.begin_idx, idx + 1, extended_word, pos, pos_id, score)
 
-    def lookup_fwd(self, lattice, jaso_unit, idx):
-        pass
+    def lookup_fwd(self, lattice, jaso_unit, idx, extra_lattice_idx):
+        if self.fwd is None:
+            return -1, extra_lattice_idx
+        if idx == 0 or jaso_unit[idx - 1] == ' ':
+            word_end_idx = jaso_unit.find(' ', idx)
+            word_end_idx = len(jaso_unit) if word_end_idx == -1 else word_end_idx
+            target_word = jaso_unit[idx:word_end_idx]
+            word_pos_pairs = self.fwd.get(target_word)
+            if word_pos_pairs is None:
+                return -1, extra_lattice_idx
+            # put(self, begin_idx, end_idx, word, pos, pos_id, observation_score, is_irregular=False):
+            length = len(word_pos_pairs)
+            if length == 1:
+                word, pos = word_pos_pairs[0]
+                pos_id = self.model.pos_table.get_id(pos)
+                lattice.put(begin_idx=idx, end_idx=word_end_idx, word=word, pos=pos, pos_id=pos_id,
+                            observation_score=0.0)
+            else:
+                fwd_idx = 0
+                for word, pos in word_pos_pairs:
+                    pos_id = self.model.pos_table.get_id(pos)
+                    if fwd_idx == 0:
+                        lattice.put(begin_idx=idx, end_idx=extra_lattice_idx - 1, word=word, pos=pos, pos_id=pos_id,
+                                    observation_score=0.0)
+                    elif fwd_idx == length - 1:
+                        lattice.put(begin_idx=extra_lattice_idx, end_idx=word_end_idx, word=word, pos=pos,
+                                    pos_id=pos_id, observation_score=0.0)
+                    else:
+                        lattice.put(begin_idx=extra_lattice_idx, end_idx=extra_lattice_idx - 1, word=word, pos=pos,
+                                    pos_id=pos_id, observation_score=0.0)
+                    extra_lattice_idx -= 1
+                    fwd_idx += 1
+            return word_end_idx, extra_lattice_idx
+        return -1, extra_lattice_idx
 
     def bridging_lattice(self, lattice, whitespace_idx, idx, jaso_units):
-        end_node_inserted = lattice.put(idx, idx + 1, SYMBOL.EOE, SYMBOL.EOE, self.model.pos_table.get_id(SYMBOL.EOE), 0.0)
+        end_node_inserted = lattice.put(idx, idx + 1, SYMBOL.EOE, SYMBOL.EOE, self.model.pos_table.get_id(SYMBOL.EOE),
+                                        0.0)
         # 마지막 노드가 추가되지 않았다면 NA임
         if not end_node_inserted:
             na_word = jaso_units[whitespace_idx:idx]
-            na_lattice_node = LatticeNode(whitespace_idx, idx, na_word, SYMBOL.NA, self.model.pos_table.get_id(SYMBOL.NA), -10000.0)
+            na_lattice_node = LatticeNode(whitespace_idx, idx, na_word, SYMBOL.NA,
+                                          self.model.pos_table.get_id(SYMBOL.NA), -10000.0)
             na_lattice_node.prev_node_idx = 0
             na_node_idx = lattice.append_node(na_lattice_node)
 
-            end_lattice_node = LatticeNode(idx, idx+1, SYMBOL.EOE, SYMBOL.EOE, self.model.pos_table.get_id(SYMBOL.EOE), 0.0)
+            end_lattice_node = LatticeNode(idx, idx + 1, SYMBOL.EOE, SYMBOL.EOE,
+                                           self.model.pos_table.get_id(SYMBOL.EOE), 0.0)
             end_lattice_node.prev_node_idx = na_node_idx
             lattice.append_node(end_lattice_node)
 
 
 komoran = Komoran("../training/komoran_model")
-begin_time = datetime.datetime.now()
-cnt = 0
-lines = []
-with open('stress.test', 'r') as f:
-    for line in f.readlines():
-        lines.append(line)
-delta = 0
-for line in lines:
-    begin_time = datetime.datetime.now()
-    komoran.analyze(line)
-    end_time = datetime.datetime.now()
-    delta += (end_time - begin_time).total_seconds()
-    cnt += 1
-    if cnt % 1000 == 0:
-        print(cnt)
-
-komoran.analyze("골렸어")  # --> 골리/VV 었/EP 어/EC 가 정답임
-komoran.analyze("샀으니")  # --> 사/VV 았/EP 으니/EC 가 정답임
-komoran.analyze("이어져서")  # --> 이어지/VV 어서/EC 가 정답임
-komoran.analyze("러너라는")  # --> 러너/NNG 이라는
-komoran.analyze("이정도로 골렸어 뷁")
-komoran.analyze("뷁뷁 뷁부어")
-# end_time = datetime.datetime.now()
-# delta = end_time - begin_time
-print(delta * 1000)
-# lattice = Lattice(komoran.model, komoran.user_dic)
-# lattice.split_irr_nodes([('ㄱㅗㄹㄹㅣ', 14), ('ㅇㅓ', 15)])
+komoran.set_fwd("../fwd.dic")
+print(komoran.analyze("이번 감기는 강하다"))
+print(komoran.analyze("골렸어"))
+print(komoran.analyze("샀으니"))
+print(komoran.analyze("이어져서"))  # --> 이어지/VV 어서/EC 가 정답임
+print(komoran.analyze("러너라는"))  # --> 러너/NNG 이라는
+print(komoran.analyze("이정도로 골렸어 뷁"))
+print(komoran.analyze("뷁뷁 뷁부어"))

@@ -142,6 +142,11 @@ class Lattice:
     def get_irregular_nodes(self, jaso_unit):
         return self.model.irr_trie.get_dictionary().get(jaso_unit, self.irregular_context)
 
+    def get_user_dic(self, jaso_unit):
+        if self.user_dic is not None:
+            return self.user_dic.get_dictionary().get(jaso_unit, self.user_dic_context)
+        return None
+
     def put(self, begin_idx, end_idx, word, pos, pos_id, observation_score, is_irregular=False):
         prev_lattice_nodes = self.lattice.get(begin_idx)
         if prev_lattice_nodes is None:
@@ -222,7 +227,7 @@ class Komoran:
                 line = line.strip()
                 if len(line) == 0 or line[0] == '#':
                     continue
-                tokens = line.rsplit('/', 1)
+                tokens = line.split('\t', 1)
                 if len(tokens) == 1:
                     word = tokens[0]
                     pos = "NNP"
@@ -257,14 +262,21 @@ class Komoran:
         idx = 0
         while idx < len(jaso_units):
             jaso_unit = jaso_units[idx]
-            # todo : here we go! 기분석 사전, 사용자 사전, 기호 처리
+            # todo : here we go! 사용자 사전, 기호 처리
+            # 기분석 사전 적용
             next_whitespace_idx, extra_lattice_idx = self.lookup_fwd(lattice, jaso_units, idx, extra_lattice_idx)
             if next_whitespace_idx != -1:
                 idx = next_whitespace_idx - 1
                 continue
+            # 공백 문자인 경우에
             if jaso_unit == ' ':
                 self.bridging_lattice(lattice, whitespace_idx, idx, jaso_units)
                 whitespace_idx = idx + 1
+
+            # 사용자 사전 적용
+            self.user_dic_parsing(lattice, jaso_unit, idx)
+
+            # 단어 파싱
             self.regular_parsing(lattice, jaso_unit, idx)
             extra_lattice_idx = self.irregular_parsing(lattice, jaso_unit, idx, extra_lattice_idx)
             self.irregular_extends(lattice, jaso_unit, idx)
@@ -415,13 +427,37 @@ class Komoran:
             end_lattice_node.prev_node_idx = na_node_idx
             lattice.append_node(end_lattice_node)
 
+    def user_dic_parsing(self, lattice, jaso_unit, idx):
+        # 아래와 같은 형태가 리턴 됨
+        # {
+        #   'ㅈㅏㅈ': [('VA', 20, -3.2449828635675546), ('VV', 14, -5.561212329330546)],
+        #   'ㅈ': [('NNG', 2, -4.833270674064261)]
+        # }
+        word_with_pos_scores = lattice.get_user_dic(jaso_unit)
+        if word_with_pos_scores is None or len(word_with_pos_scores) == 0:
+            return
+        for word, pos_scores in word_with_pos_scores.items():
+            begin_idx = idx - len(word) + 1
+            end_idx = idx + 1
+            for pos, pos_id, observation_score in pos_scores:
+                lattice.put(begin_idx, end_idx, word, pos, pos_id, observation_score)
+
+
 
 komoran = Komoran("../training/komoran_model")
-komoran.set_fwd("../fwd.dic")
+# komoran.set_fwd("../fwd.dic")
+komoran.set_user_dic("../user.dic")
 print(komoran.analyze("이번 감기는 강하다"))
+print()
 print(komoran.analyze("골렸어"))
+print()
 print(komoran.analyze("샀으니"))
+print()
 print(komoran.analyze("이어져서"))  # --> 이어지/VV 어서/EC 가 정답임
+print()
 print(komoran.analyze("러너라는"))  # --> 러너/NNG 이라는
+print()
 print(komoran.analyze("이정도로 골렸어 뷁"))
+print()
 print(komoran.analyze("뷁뷁 뷁부어"))
+print()

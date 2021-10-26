@@ -1,5 +1,6 @@
 import math
 
+from utils.string_util import StringUtil
 from common.irregular.irregular_trie import IrregularTrie
 from constant import FILENAME, SYMBOL
 from parser.korean_unit_parser import KoreanUnitParser
@@ -262,7 +263,7 @@ class Komoran:
         idx = 0
         while idx < len(jaso_units):
             jaso_unit = jaso_units[idx]
-            # todo : here we go! 사용자 사전, 기호 처리
+            # todo : here we go! 기호 처리 결과 확인 및 연속 기호 처리
             # 기분석 사전 적용
             next_whitespace_idx, extra_lattice_idx = self.lookup_fwd(lattice, jaso_units, idx, extra_lattice_idx)
             if next_whitespace_idx != -1:
@@ -275,6 +276,8 @@ class Komoran:
 
             # 사용자 사전 적용
             self.user_dic_parsing(lattice, jaso_unit, idx)
+
+            self.symbol_parsing(lattice, jaso_unit, idx)
 
             # 단어 파싱
             self.regular_parsing(lattice, jaso_unit, idx)
@@ -442,6 +445,18 @@ class Komoran:
             for pos, pos_id, observation_score in pos_scores:
                 lattice.put(begin_idx, end_idx, word, pos, pos_id, observation_score)
 
+    def symbol_parsing(self, lattice, jaso_unit, idx):
+        hex_value = ord(jaso_unit[idx])
+        if StringUtil.is_num(hex_value):
+            return
+        elif StringUtil.is_basic_latic(hex_value):
+            if StringUtil.is_english(hex_value) is False \
+                    and hex_value != 0x20 \
+                    and self.model.observation.ahocorasick.get_value(jaso_unit[idx]) is None:
+                lattice.put(idx, idx + 1, jaso_unit[idx], SYMBOL.SW, self.model.pos_table.get_id(SYMBOL.SW), -10000.0)
+        elif StringUtil.is_korean(hex_value) is False and StringUtil.is_japanese(
+                hex_value) is False and StringUtil.is_chinese(hex_value):
+            lattice.put(idx, idx + 1, jaso_unit[idx], SYMBOL.SW, self.model.pos_table.get_id(SYMBOL.SW), -10000.0)
 
 
 komoran = Komoran("../training/komoran_model")
@@ -461,3 +476,10 @@ print(komoran.analyze("이정도로 골렸어 뷁"))
 print()
 print(komoran.analyze("뷁뷁 뷁부어"))
 print()
+#
+# ch = '감'
+# hex_value = ord(ch)
+# if 0x0000 < hex_value < 0x007E:
+#     print('basic latic')
+# else:
+#     print('other')

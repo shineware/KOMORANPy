@@ -342,8 +342,9 @@ class Komoran:
             result.append((word, pos))
             begin_idx = node.begin_idx
             prev_node_idx = node.prev_node_idx
-        for word, pos in reversed(result):
-            print(f"{word}/{pos}")
+        return reversed(result)
+        # for word, pos in reversed(result):
+        #     print(f"{word}/{pos}")
 
     def regular_parsing(self, lattice, jaso_unit, idx):
         # 아래와 같은 형태가 리턴 됨
@@ -503,12 +504,13 @@ class Komoran:
         if cur_pos == chunk_letter.get_prev_pos():
             chunk_letter.set_prev_word(chunk_letter.get_prev_word() + jaso_unit)
         else:
-            lattice.put(begin_idx=chunk_letter.get_prev_begin_idx(),
-                        end_idx=idx,
-                        word=chunk_letter.get_prev_word(),
-                        pos=chunk_letter.get_prev_pos(),
-                        pos_id=self.model.pos_table.get_id(chunk_letter.get_prev_pos()),
-                        observation_score=-1.0)
+            if chunk_letter.get_prev_pos() == "SL" or chunk_letter.get_prev_pos() == "SH" or chunk_letter.get_prev_pos() == "SN":
+                lattice.put(begin_idx=chunk_letter.get_prev_begin_idx(),
+                            end_idx=idx,
+                            word=chunk_letter.get_prev_word(),
+                            pos=chunk_letter.get_prev_pos(),
+                            pos_id=self.model.pos_table.get_id(chunk_letter.get_prev_pos()),
+                            observation_score=-1.0)
             chunk_letter.set_prev_begin_idx(idx)
             chunk_letter.set_prev_word(jaso_unit)
             chunk_letter.set_prev_pos(cur_pos)
@@ -522,24 +524,23 @@ class Komoran:
                         pos_id=self.model.pos_table.get_id(chunk_letter.get_prev_pos()),
                         observation_score=-1.0)
 
-
-komoran = Komoran("../training/komoran_model")
+# komoran = Komoran("../training/komoran_model")
 # komoran.set_fwd("../fwd.dic")
-komoran.set_user_dic("../user.dic")
-print(komoran.analyze("이번 감기는 강하다"))
-print()
-print(komoran.analyze("골렸어"))
-print()
-print(komoran.analyze("샀으니"))
-print()
-print(komoran.analyze("이어져서"))  # --> 이어지/VV 어서/EC 가 정답임
-print()
-print(komoran.analyze("러너라는"))  # --> 러너/NNG 이라는
-print()
-print(komoran.analyze("이정도로 골렸어 뷁"))
-print()
-print(komoran.analyze("뷁뷁 뷁부어"))
-print()
+# komoran.set_user_dic("../user.dic")
+# print(komoran.analyze("이번 감기는 강하다"))
+# print()
+# print(komoran.analyze("골렸어"))
+# print()
+# print(komoran.analyze("샀으니"))
+# print()
+# print(komoran.analyze("이어져서"))  # --> 이어지/VV 어서/EC 가 정답임
+# print()
+# print(komoran.analyze("러너라는"))  # --> 러너/NNG 이라는
+# print()
+# print(komoran.analyze("이정도로 골렸어 뷁"))
+# print()
+# print(komoran.analyze("뷁뷁 뷁부어"))
+# print()
 #
 # ch = '감'
 # hex_value = ord(ch)

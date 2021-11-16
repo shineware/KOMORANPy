@@ -12,6 +12,13 @@ class Transition:
 
     def get(self, prev_pos_id, cur_pos_id):
         score = self.score_matrix[prev_pos_id][cur_pos_id]
+        # has_transition_score = np.where(score == -np.inf, False, True)
+        # print(f"{prev_pos_id}->{cur_pos_id}:{score}")
+        # print(has_transition_score)
+        # if has_transition_score:
+        #     return score
+        # else:
+        #     return None
         if score == -np.inf:
             return None
         return score

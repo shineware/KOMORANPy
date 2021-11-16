@@ -118,7 +118,7 @@ class CorpusBuilder:
 
     def _pruning(self):
         # dic pruning
-        pruned_dic, pruned_words = self._pruning_dic(self.word_dic.get_dict(), freq_threshold=1)
+        pruned_dic, pruned_words = self._pruning_dic(self.word_dic.get_dict(), freq_threshold=2)
         self.word_dic = Dictionary(pruned_dic)
         with open('excluded_nouns.txt', 'w') as f:
             for word in pruned_words:
@@ -135,7 +135,7 @@ class CorpusBuilder:
         for _word, _pos_freq_dic in dic.items():
             _pruned_pos_freq_dic = {}
             for _pos, _freq in _pos_freq_dic.items():
-                if _freq < freq_threshold:
+                if _freq >= freq_threshold:
                     if _pos == 'NNG' or _pos == 'NNP':
                         _pruned_words.append(_word)
                     continue

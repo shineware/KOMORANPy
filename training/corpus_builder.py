@@ -118,7 +118,7 @@ class CorpusBuilder:
 
     def _pruning(self):
         # dic pruning
-        pruned_dic, pruned_words = self._pruning_dic(self.word_dic.get_dict())
+        pruned_dic, pruned_words = self._pruning_dic(self.word_dic.get_dict(), freq_threshold=1)
         self.word_dic = Dictionary(pruned_dic)
         with open('excluded_nouns.txt', 'w') as f:
             for word in pruned_words:

@@ -212,6 +212,31 @@ class Lattice:
         return len(lattice_nodes) - 1
 
 
+class ChunkLetter:
+    def __init__(self):
+        self.prev_pos = ""
+        self.prev_word = ""
+        self.prev_begin_idx = 0
+
+    def get_prev_pos(self):
+        return self.prev_pos
+
+    def get_prev_word(self):
+        return self.prev_word
+
+    def get_prev_begin_idx(self):
+        return self.prev_begin_idx
+
+    def set_prev_pos(self, prev_pos):
+        self.prev_pos = prev_pos
+
+    def set_prev_word(self, prev_word):
+        self.prev_word = prev_word
+
+    def set_prev_begin_idx(self, prev_begin_idx):
+        self.prev_begin_idx = prev_begin_idx
+
+
 class Komoran:
     def __init__(self, model_path):
         print(f'load model : {model_path}')
@@ -261,6 +286,7 @@ class Komoran:
         extra_lattice_idx = -1
         whitespace_idx = 0
         idx = 0
+        chunk_letter = ChunkLetter()
         while idx < len(jaso_units):
             jaso_unit = jaso_units[idx]
             # todo : here we go! 기호 처리 결과 확인 및 연속 기호 처리
@@ -271,13 +297,16 @@ class Komoran:
                 continue
             # 공백 문자인 경우에
             if jaso_unit == ' ':
+                self.consume_remain_chunk_letter(lattice, idx, chunk_letter)
                 self.bridging_lattice(lattice, whitespace_idx, idx, jaso_units)
                 whitespace_idx = idx + 1
 
             # 사용자 사전 적용
             self.user_dic_parsing(lattice, jaso_unit, idx)
-
+            # 기호 파싱
             self.symbol_parsing(lattice, jaso_unit, idx)
+            # 연속 문자 (숫자, 영어, 한자 등)
+            self.chunk_letter_parsing(lattice, jaso_unit, idx, chunk_letter)
 
             # 단어 파싱
             self.regular_parsing(lattice, jaso_unit, idx)
@@ -287,6 +316,7 @@ class Komoran:
 
         last_idx = len(jaso_units)
         # 단어 끝에 어절 마지막 노드 추가
+        self.consume_remain_chunk_letter(lattice, last_idx, chunk_letter)
         self.bridging_lattice(lattice, whitespace_idx, last_idx, jaso_units)
         last_idx += 1
 
@@ -446,17 +476,51 @@ class Komoran:
                 lattice.put(begin_idx, end_idx, word, pos, pos_id, observation_score)
 
     def symbol_parsing(self, lattice, jaso_unit, idx):
-        hex_value = ord(jaso_unit[idx])
+        hex_value = ord(jaso_unit)
         if StringUtil.is_num(hex_value):
             return
         elif StringUtil.is_basic_latic(hex_value):
             if StringUtil.is_english(hex_value) is False \
                     and hex_value != 0x20 \
-                    and self.model.observation.ahocorasick.get_value(jaso_unit[idx]) is None:
-                lattice.put(idx, idx + 1, jaso_unit[idx], SYMBOL.SW, self.model.pos_table.get_id(SYMBOL.SW), -10000.0)
+                    and self.model.observation.ahocorasick.get_value(jaso_unit) is None:
+                lattice.put(idx, idx + 1, jaso_unit, SYMBOL.SW, self.model.pos_table.get_id(SYMBOL.SW), -10000.0)
         elif StringUtil.is_korean(hex_value) is False and StringUtil.is_japanese(
                 hex_value) is False and StringUtil.is_chinese(hex_value):
-            lattice.put(idx, idx + 1, jaso_unit[idx], SYMBOL.SW, self.model.pos_table.get_id(SYMBOL.SW), -10000.0)
+            lattice.put(idx, idx + 1, jaso_unit, SYMBOL.SW, self.model.pos_table.get_id(SYMBOL.SW), -10000.0)
+
+    def chunk_letter_parsing(self, lattice, jaso_unit, idx, chunk_letter):
+        cur_pos = ""
+        hex_value = ord(jaso_unit)
+        if StringUtil.is_english(hex_value):
+            cur_pos = "SL"
+        elif StringUtil.is_num(hex_value):
+            cur_pos = "SN"
+        elif StringUtil.is_chinese(hex_value):
+            cur_pos = "SH"
+        elif StringUtil.is_japanese(hex_value):
+            cur_pos = "SL"
+
+        if cur_pos == chunk_letter.get_prev_pos():
+            chunk_letter.set_prev_word(chunk_letter.get_prev_word() + jaso_unit)
+        else:
+            lattice.put(begin_idx=chunk_letter.get_prev_begin_idx(),
+                        end_idx=idx,
+                        word=chunk_letter.get_prev_word(),
+                        pos=chunk_letter.get_prev_pos(),
+                        pos_id=self.model.pos_table.get_id(chunk_letter.get_prev_pos()),
+                        observation_score=-1.0)
+            chunk_letter.set_prev_begin_idx(idx)
+            chunk_letter.set_prev_word(jaso_unit)
+            chunk_letter.set_prev_pos(cur_pos)
+
+    def consume_remain_chunk_letter(self, lattice, idx, chunk_letter):
+        if len(chunk_letter.get_prev_pos().strip()) != 0:
+            lattice.put(begin_idx=chunk_letter.get_prev_begin_idx(),
+                        end_idx=idx,
+                        word=chunk_letter.get_prev_word(),
+                        pos=chunk_letter.get_prev_pos(),
+                        pos_id=self.model.pos_table.get_id(chunk_letter.get_prev_pos()),
+                        observation_score=-1.0)
 
 
 komoran = Komoran("../training/komoran_model")

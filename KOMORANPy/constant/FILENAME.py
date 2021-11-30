@@ -1,0 +1,7 @@
+GRAMMAR = "grammar.in"
+WORD_DIC = "dic.word"
+IRREGULAR_DIC = "dic.irregular"
+POS_TABLE = "pos.table"
+OBSERVATION = "observation.model"
+TRANSITION = "transition.model"
+IRREGULAR_MODEL = "irregular.model"

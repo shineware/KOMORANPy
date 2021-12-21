@@ -1,6 +1,6 @@
 import time
 
-from KOMORANPy.core.komoran import Komoran
+from ..core.komoran import Komoran
 
 komoran = Komoran("../training/komoran_model")
 komoran.set_fwd("../fwd.dic")

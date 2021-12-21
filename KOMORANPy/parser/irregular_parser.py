@@ -1,4 +1,4 @@
-from KOMORANPy.parser.korean_unit_parser import is_korean
+from ..parser.korean_unit_parser import is_korean
 
 
 class IrregularParser:

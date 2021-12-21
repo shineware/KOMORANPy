@@ -1,6 +1,6 @@
 import sys
 
-from KOMORANPy.parser.problem_answer_info import ProblemAnswerInfo
+from ..parser.problem_answer_info import ProblemAnswerInfo
 
 
 class CorpusParser:

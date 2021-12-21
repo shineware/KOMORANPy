@@ -1,12 +1,12 @@
 import math
 
-from KOMORANPy.common.irregular.irregular_trie import IrregularTrie
-from KOMORANPy.constant import SYMBOL, FILENAME
-from KOMORANPy.parser.korean_unit_parser import KoreanUnitParser
-from KOMORANPy.training.model.observation import Observation
-from KOMORANPy.training.model.pos_table import PosTable
-from KOMORANPy.training.model.transition import Transition
-from KOMORANPy.utils.string_util import StringUtil
+from ..common.irregular.irregular_trie import IrregularTrie
+from ..constant import SYMBOL, FILENAME
+from ..parser.korean_unit_parser import KoreanUnitParser
+from ..training.model.observation import Observation
+from ..training.model.pos_table import PosTable
+from ..training.model.transition import Transition
+from ..utils.string_util import StringUtil
 
 
 class Model:

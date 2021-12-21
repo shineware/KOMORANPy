@@ -1,7 +1,7 @@
 import gzip
 import pickle
 
-from KOMORANPy.common.ahocorasick.ahocorasick_node import AhoCorasickNode
+from .ahocorasick_node import AhoCorasickNode
 
 
 class FindContext:

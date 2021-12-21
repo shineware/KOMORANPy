@@ -1,4 +1,4 @@
-from KOMORANPy.common.ahocorasick.ahocorasick_dictionary import AhoCorasickDictionary
+from ..ahocorasick.ahocorasick_dictionary import AhoCorasickDictionary
 
 
 class IrregularTrie:

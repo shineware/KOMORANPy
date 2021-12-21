@@ -2,16 +2,16 @@ import math
 import os
 import shutil
 
-from KOMORANPy.common.dictionary import Dictionary
-from KOMORANPy.common.grammar import Grammar
-from KOMORANPy.common.irregular.irregular_node import IrregularNode
+from ..common.dictionary import Dictionary
+from ..common.grammar import Grammar
+from ..common.irregular.irregular_node import IrregularNode
 
-from KOMORANPy.common.irregular.irregular_trie import IrregularTrie
-from KOMORANPy.constant import SYMBOL, FILENAME
-from KOMORANPy.parser.korean_unit_parser import KoreanUnitParser
-from KOMORANPy.training.model.observation import Observation
-from KOMORANPy.training.model.pos_table import PosTable
-from KOMORANPy.training.model.transition import Transition
+from ..common.irregular.irregular_trie import IrregularTrie
+from ..constant import SYMBOL, FILENAME
+from ..parser.korean_unit_parser import KoreanUnitParser
+from ..training.model.observation import Observation
+from ..training.model.pos_table import PosTable
+from ..training.model.transition import Transition
 
 
 class ModelBuilder:

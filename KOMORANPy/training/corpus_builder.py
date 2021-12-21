@@ -2,12 +2,12 @@ import os
 import re
 import shutil
 
-from KOMORANPy.common.dictionary import Dictionary
-from KOMORANPy.common.grammar import Grammar
-from KOMORANPy.constant import SYMBOL, FILENAME
-from KOMORANPy.parser.corpus_parser import CorpusParser
-from KOMORANPy.parser.irregular_parser import IrregularParser
-from KOMORANPy.parser.korean_unit_parser import KoreanUnitParser, is_jamo
+from ..common.dictionary import Dictionary
+from ..common.grammar import Grammar
+from ..constant import SYMBOL, FILENAME
+from ..parser.corpus_parser import CorpusParser
+from ..parser.irregular_parser import IrregularParser
+from ..parser.korean_unit_parser import KoreanUnitParser, is_jamo
 
 
 class CorpusBuilder:

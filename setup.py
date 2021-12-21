@@ -4,8 +4,8 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="komoranPy",
-    version="0.0.3",
+    name="komoranPi",
+    version="0.0.1",
     author="Junsoo Shin",
     author_email="ceo@shineware.co.kr",
     description="KOMORAN의 native python 버전입니다.",
